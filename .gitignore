@@ -1,0 +1,49 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Root level ignores
+node_modules/
+dist/
+target/
+build/
+
+# Backend (Spring Boot)
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/.sts4-cache
+**/.apt_generated
+**/.classpath
+**/.factorypath
+**/.project
+**/.settings
+**/.springBeans
+
+# Frontend (React/Vite)
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/*.local
+**/npm-debug.log*
+**/yarn-debug.log*
+**/pnpm-debug.log*
+
+# Sensitive Files (IMPORTANT)
+**/src/main/resources/application.properties
+**/src/main/resources/*.json
+**/src/main/resources/*.p12
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Executables
+*.exe
+*.dll
+*.so
+*.dylib
