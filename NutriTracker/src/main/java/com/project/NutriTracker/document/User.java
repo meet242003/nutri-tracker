@@ -32,6 +32,14 @@ public class User {
     private String passwordResetToken;
     private LocalDateTime passwordResetTokenExpiry;
 
+    // Health Profile Fields
+    private Double height; // in cm
+    private Double weight; // in kg
+    private java.time.LocalDate dateOfBirth;
+    private String gender; // MALE, FEMALE, OTHER
+    private String activityLevel; // SEDENTARY, LIGHTLY_ACTIVE, MODERATELY_ACTIVE, VERY_ACTIVE, EXTREMELY_ACTIVE
+    private String goal; // WEIGHT_LOSS, WEIGHT_GAIN, MUSCLE_GAIN, MAINTENANCE
+
     @CreatedDate
     private LocalDateTime createdAt;
     @LastModifiedDate

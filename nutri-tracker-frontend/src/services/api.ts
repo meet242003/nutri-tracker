@@ -4,7 +4,11 @@ import type {
     AuthResponse,
     MealImageUploadResponse,
     MealImage,
-    MealAnalysisResponse,
+    UserProfileRequest,
+    UserProfileResponse,
+    DailyStatsResponse,
+    FoodSearchResponse,
+    ManualFoodEntryRequest,
 } from '../types';
 
 const API_BASE_URL = 'http://localhost:8080/api';
@@ -74,6 +78,80 @@ export const authApi = {
     },
 };
 
+// User Profile API
+export const userApi = {
+    getProfile: async (): Promise<UserProfileResponse> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/user/profile`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch user profile');
+        }
+
+        return response.json();
+    },
+
+    updateProfile: async (data: UserProfileRequest): Promise<UserProfileResponse> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/user/profile`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update profile');
+        }
+
+        return response.json();
+    },
+};
+
+// Stats API
+export const statsApi = {
+    getTodayStats: async (): Promise<DailyStatsResponse> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/stats/today`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch today\'s stats');
+        }
+
+        return response.json();
+    },
+
+    getDailyStats: async (date: string): Promise<DailyStatsResponse> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/stats/daily?date=${date}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch daily stats');
+        }
+
+        return response.json();
+    },
+};
+
 // Meals API
 export const mealsApi = {
     uploadMealImage: async (file: File): Promise<MealImageUploadResponse> => {
@@ -97,6 +175,41 @@ export const mealsApi = {
         return response.json();
     },
 
+    searchFoods: async (query: string, limit: number = 10): Promise<FoodSearchResponse> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/meals/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to search foods');
+        }
+
+        return response.json();
+    },
+
+    createManualEntry: async (data: ManualFoodEntryRequest): Promise<MealImage> => {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/meals/manual`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create manual entry');
+        }
+
+        return response.json();
+    },
+
     getUserMealImages: async (): Promise<MealImage[]> => {
         const token = getAuthToken();
         const response = await fetch(`${API_BASE_URL}/meals`, {
@@ -113,7 +226,7 @@ export const mealsApi = {
         return response.json();
     },
 
-    getMealAnalysis: async (mealId: string): Promise<MealAnalysisResponse> => {
+    getMealAnalysis: async (mealId: string): Promise<MealImage> => {
         const token = getAuthToken();
         const response = await fetch(`${API_BASE_URL}/meals/${mealId}/analysis`, {
             method: 'GET',

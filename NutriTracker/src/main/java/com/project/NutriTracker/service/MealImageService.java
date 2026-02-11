@@ -148,4 +148,97 @@ public class MealImageService {
             throw new IllegalArgumentException("Unsupported image format. Supported formats: JPEG, JPG, PNG, WEBP");
         }
     }
+
+    /**
+     * Create manual food entry without image
+     */
+    public MealImage createManualFoodEntry(String userId,
+            List<com.project.NutriTracker.dto.ManualFoodEntryRequest.FoodEntry> foods) {
+        try {
+            log.info("Creating manual food entry for user: {}", userId);
+
+            // Create meal image document without image URL
+            MealImage mealImage = new MealImage();
+            mealImage.setUserId(userId);
+            mealImage.setImageUrl(null); // No image for manual entry
+            mealImage.setFileName("Manual Entry");
+            mealImage.setStatus("ANALYZED"); // Already analyzed since user provided data
+            mealImage.setUploadedAt(LocalDateTime.now());
+            mealImage.setAnalyzedAt(LocalDateTime.now());
+
+            // Convert food entries to detected foods
+            List<MealImage.FoodItem> detectedFoods = foods.stream()
+                    .map(food -> {
+                        MealImage.FoodItem foodItem = new MealImage.FoodItem();
+                        foodItem.setName(food.getName());
+                        foodItem.setQuantity(food.getQuantityGrams());
+                        foodItem.setConfidence(1.0); // Manual entry is 100% confident
+
+                        // Convert nutrition info
+                        if (food.getNutrition() != null) {
+                            MealImage.NutritionInfo nutrition = new MealImage.NutritionInfo();
+                            nutrition.setCalories(food.getNutrition().getCalories());
+                            nutrition.setProtein(food.getNutrition().getProtein());
+                            nutrition.setCarbohydrates(food.getNutrition().getCarbohydrates());
+                            nutrition.setFat(food.getNutrition().getFat());
+                            nutrition.setFiber(food.getNutrition().getFiber());
+                            nutrition.setSugar(food.getNutrition().getSugar());
+                            foodItem.setNutrition(nutrition);
+                        }
+
+                        return foodItem;
+                    })
+                    .toList();
+
+            mealImage.setDetectedFoods(detectedFoods);
+
+            // Calculate nutrition summary
+            MealImage.NutritionSummary summary = calculateNutritionSummary(detectedFoods);
+            mealImage.setNutritionSummary(summary);
+
+            // Save to database
+            MealImage savedImage = mealImageRepository.save(mealImage);
+            log.info("Manual food entry created successfully with ID: {}", savedImage.getId());
+
+            return savedImage;
+
+        } catch (Exception e) {
+            log.error("Error creating manual food entry: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create manual food entry: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Calculate nutrition summary from food items
+     */
+    private MealImage.NutritionSummary calculateNutritionSummary(List<MealImage.FoodItem> foods) {
+        double totalCalories = 0;
+        double totalProtein = 0;
+        double totalCarbs = 0;
+        double totalFat = 0;
+        double totalFiber = 0;
+        double totalSugar = 0;
+
+        for (MealImage.FoodItem food : foods) {
+            if (food.getNutrition() != null) {
+                MealImage.NutritionInfo nutrition = food.getNutrition();
+                totalCalories += nutrition.getCalories() != null ? nutrition.getCalories() : 0;
+                totalProtein += nutrition.getProtein() != null ? nutrition.getProtein() : 0;
+                totalCarbs += nutrition.getCarbohydrates() != null ? nutrition.getCarbohydrates() : 0;
+                totalFat += nutrition.getFat() != null ? nutrition.getFat() : 0;
+                totalFiber += nutrition.getFiber() != null ? nutrition.getFiber() : 0;
+                totalSugar += nutrition.getSugar() != null ? nutrition.getSugar() : 0;
+            }
+        }
+
+        MealImage.NutritionSummary summary = new MealImage.NutritionSummary();
+        summary.setTotalCalories(totalCalories);
+        summary.setTotalProtein(totalProtein);
+        summary.setTotalCarbohydrates(totalCarbs);
+        summary.setTotalFat(totalFat);
+        summary.setTotalFiber(totalFiber);
+        summary.setTotalSugar(totalSugar);
+
+        return summary;
+    }
 }

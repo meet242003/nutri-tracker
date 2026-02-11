@@ -216,4 +216,28 @@ public class NutritionDatabaseService {
 
         return null;
     }
+
+    /**
+     * Search for foods in the database
+     */
+    public List<FoodComposition> searchFoods(String query, int limit) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+
+        String normalized = normalizeFoodName(query);
+        List<FoodComposition> results = foodCompositionRepository.findByNameContainingIgnoreCase(normalized);
+
+        // Limit results
+        return results.stream()
+                .limit(limit)
+                .toList();
+    }
+
+    /**
+     * Get food by ID
+     */
+    public FoodComposition getFoodById(String id) {
+        return foodCompositionRepository.findById(id).orElse(null);
+    }
 }

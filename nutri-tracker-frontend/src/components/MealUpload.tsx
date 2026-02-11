@@ -1,14 +1,18 @@
 import { useState, useRef } from 'react';
 import { mealsApi } from '../services/api';
-import type { MealAnalysisResponse } from '../types';
+import type { MealImage } from '../types';
 
-export default function MealUpload() {
+interface MealUploadProps {
+    onSuccess?: () => void;
+}
+
+export default function MealUpload({ onSuccess }: MealUploadProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string>('');
     const [uploading, setUploading] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [uploadedMealId, setUploadedMealId] = useState<string>('');
-    const [analysis, setAnalysis] = useState<MealAnalysisResponse | null>(null);
+    const [analysis, setAnalysis] = useState<MealImage | null>(null);
     const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,17 +48,20 @@ export default function MealUpload() {
 
     const pollForAnalysis = async (mealId: string) => {
         let attempts = 0;
-        const maxAttempts = 30; // 30 seconds max
+        const maxAttempts = 120; // 30 seconds max
 
         const poll = async () => {
             try {
                 const analysisResponse = await mealsApi.getMealAnalysis(mealId);
+                console.log(analysisResponse);
 
-                if (analysisResponse.mealImage.status === 'ANALYZED') {
+                if (analysisResponse.status === 'ANALYZED') {
                     setAnalysis(analysisResponse);
                     setAnalyzing(false);
-                } else if (analysisResponse.mealImage.status === 'FAILED') {
-                    setError('Analysis failed: ' + analysisResponse.mealImage.errorMessage);
+                    // Call onSuccess callback to refresh dashboard
+                    onSuccess?.();
+                } else if (analysisResponse.status === 'FAILED') {
+                    setError('Analysis failed: ' + analysisResponse.errorMessage);
                     setAnalyzing(false);
                 } else if (attempts < maxAttempts) {
                     attempts++;

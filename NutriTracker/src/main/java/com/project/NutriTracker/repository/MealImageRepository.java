@@ -1,5 +1,6 @@
 package com.project.NutriTracker.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -14,4 +15,6 @@ public interface MealImageRepository extends MongoRepository<MealImage, String> 
     List<MealImage> findByUserIdOrderByUploadedAtDesc(String userId);
 
     List<MealImage> findByStatus(String status);
+
+    List<MealImage> findByUserIdAndUploadedAtBetween(String userId, LocalDateTime start, LocalDateTime end);
 }
