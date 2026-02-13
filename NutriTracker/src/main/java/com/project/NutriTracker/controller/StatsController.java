@@ -70,6 +70,51 @@ public class StatsController {
         }
     }
 
+    /**
+     * Get monthly nutrition stats
+     * GET /api/stats/monthly?year=2026&month=2
+     */
+    @GetMapping("/monthly")
+    public ResponseEntity<?> getMonthlyStats(
+            @RequestParam int year,
+            @RequestParam int month,
+            Authentication authentication) {
+        try {
+            User principal = (User) authentication.getPrincipal();
+            String email = principal.getEmail();
+            log.info("Fetching monthly stats for user: {} for {}-{}", email, year, month);
+
+            com.project.NutriTracker.dto.MonthlyStatsResponse stats = statsService.getMonthlyStats(email, year, month);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("Error fetching monthly stats: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(new ErrorResponse("Failed to fetch monthly stats: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get yearly nutrition stats
+     * GET /api/stats/yearly?year=2026
+     */
+    @GetMapping("/yearly")
+    public ResponseEntity<?> getYearlyStats(
+            @RequestParam int year,
+            Authentication authentication) {
+        try {
+            User principal = (User) authentication.getPrincipal();
+            String email = principal.getEmail();
+            log.info("Fetching yearly stats for user: {} for year {}", email, year);
+
+            com.project.NutriTracker.dto.YearlyStatsResponse stats = statsService.getYearlyStats(email, year);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("Error fetching yearly stats: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(new ErrorResponse("Failed to fetch yearly stats: " + e.getMessage()));
+        }
+    }
+
     // Inner class for error responses
     private record ErrorResponse(String error) {
     }
