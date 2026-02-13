@@ -24,7 +24,10 @@ import com.project.NutriTracker.document.MealImage.IngredientInfo;
 import com.project.NutriTracker.document.MealImage.NutritionInfo;
 import com.project.NutriTracker.document.MealImage.NutritionSummary;
 import com.project.NutriTracker.dto.DetectedDish;
+import com.project.NutriTracker.dto.DietRecommendationResponse;
 import com.project.NutriTracker.dto.DishBreakdown;
+import com.project.NutriTracker.dto.MonthlyStatsResponse;
+import com.project.NutriTracker.dto.UserProfileResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -407,5 +410,100 @@ public class GeminiNutritionAnalysisService {
         if (val == null)
             return 0.0;
         return Math.round(val * 100.0) / 100.0;
+    }
+
+    /**
+     * Generate diet recommendation based on recent stats
+     */
+    public DietRecommendationResponse generateDietRecommendation(
+            List<MonthlyStatsResponse.DailyBreakdown> recentStats,
+            UserProfileResponse userProfile) throws IOException {
+
+        String prompt = buildRecommendationPrompt(recentStats, userProfile);
+
+        // Create text-only content
+        Content content = Content.fromParts(Part.fromText(prompt));
+
+        // Configure generation
+        GenerateContentConfig config = GenerateContentConfig.builder()
+                .temperature(0.7f) // Slightly higher for creativity
+                .topK(32f)
+                .topP(1.0f)
+                .maxOutputTokens(1024)
+                .build();
+
+        // Generate content
+        GenerateContentResponse response = client.models.generateContent(modelName, content, config);
+
+        // Extract text
+        String responseText = response.text();
+
+        // Clean up response
+        responseText = responseText.replaceAll("```json", "").replaceAll("```", "").trim();
+        log.debug("Recommendation response: {}", responseText);
+
+        // Parse JSON
+        return objectMapper.readValue(responseText, DietRecommendationResponse.class);
+    }
+
+    private String buildRecommendationPrompt(
+            List<MonthlyStatsResponse.DailyBreakdown> recentStats,
+            UserProfileResponse userProfile) {
+
+        StringBuilder statsBuilder = new StringBuilder();
+        if (recentStats.isEmpty()) {
+            statsBuilder.append("No meals logged in the last 7 days.");
+        } else {
+            for (MonthlyStatsResponse.DailyBreakdown day : recentStats) {
+                statsBuilder.append(String.format(
+                        "- %s: %s calories, %s protein, %s carbs, %s fat (Met Goals: %s)\n",
+                        day.getDate(),
+                        day.getCalories(),
+                        day.getProtein(),
+                        day.getCarbohydrates(),
+                        day.getFat(),
+                        day.getMetGoals() ? "Yes" : "No"));
+            }
+        }
+
+        String goalsStr = "Standard 2000 calorie diet";
+        if (userProfile.getNutritionGoals() != null) {
+            UserProfileResponse.NutritionGoals g = userProfile.getNutritionGoals();
+            goalsStr = String.format(
+                    "Calories: %.0f, Protein: %.0fg, Carbs: %.0fg, Fat: %.0fg",
+                    g.getCalories(), g.getProtein(), g.getCarbohydrates(), g.getFat());
+        }
+
+        return String.format("""
+                You are an expert personalized nutritionist.
+
+                Analyze this user's recent nutrition data against their goals and provide actionable recommendations.
+
+                USER GOALS:
+                %s
+
+                RECENT ACTIVITY (Last 7 days):
+                %s
+
+                TASK:
+                1. Suggest 3 specific, actionable diet changes to improve their nutrition.
+                2. Suggest 3 specific healthy food add-ons they should eat more of.
+                3. Write a short, encouraging summary recommendation.
+
+                OUTPUT FORMAT (JSON only, no markdown):
+                {
+                  "recommendation": "Your overall summary and encouragement here...",
+                  "suggestedChanges": [
+                    "Reduce dinner portion sizes...",
+                    "Swap white rice for brown rice...",
+                    "Increase protein at breakfast..."
+                  ],
+                  "suggestedAddOns": [
+                    "Greek yogurt for snacks",
+                    "Spinach in smoothies",
+                    "Almonds"
+                  ]
+                }
+                """, goalsStr, statsBuilder.toString());
     }
 }

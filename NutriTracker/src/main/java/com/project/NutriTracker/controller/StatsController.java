@@ -115,6 +115,31 @@ public class StatsController {
         }
     }
 
+    /**
+     * Get streak information
+     * GET /api/stats/streak?days=30
+     * Default: last 30 days
+     */
+    @GetMapping("/streak")
+    public ResponseEntity<?> getStreak(
+            @RequestParam(required = false, defaultValue = "30") int days,
+            Authentication authentication) {
+        try {
+            User principal = (User) authentication.getPrincipal();
+            String email = principal.getEmail();
+            LocalDate endDate = LocalDate.now();
+
+            log.info("Fetching streak for user: {} (last {} days)", email, days);
+
+            com.project.NutriTracker.dto.StreakResponse streak = statsService.calculateStreak(email, endDate, days);
+            return ResponseEntity.ok(streak);
+        } catch (Exception e) {
+            log.error("Error fetching streak: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(new ErrorResponse("Failed to fetch streak: " + e.getMessage()));
+        }
+    }
+
     // Inner class for error responses
     private record ErrorResponse(String error) {
     }

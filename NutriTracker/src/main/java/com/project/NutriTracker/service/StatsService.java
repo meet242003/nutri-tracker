@@ -56,7 +56,7 @@ public class StatsService {
                                 .collect(Collectors.toList());
 
                 // Calculate total consumed nutrition
-                DailyStatsResponse.NutritionConsumed consumed = calculateTotalNutrition(analyzedMeals);
+                DailyStatsResponse.NutritionConsumed consumed = calculateDailyTotalNutrition(analyzedMeals);
 
                 // Get nutrition goals from user profile
                 DailyStatsResponse.NutritionGoals goals = buildNutritionGoals(userProfile);
@@ -80,7 +80,7 @@ public class StatsService {
         /**
          * Calculate total nutrition from all meals
          */
-        private DailyStatsResponse.NutritionConsumed calculateTotalNutrition(List<MealImage> meals) {
+        private DailyStatsResponse.NutritionConsumed calculateDailyTotalNutrition(List<MealImage> meals) {
                 double totalCalories = 0;
                 double totalProtein = 0;
                 double totalCarbs = 0;
@@ -229,7 +229,7 @@ public class StatsService {
                 int daysInMonth = yearMonth.lengthOfMonth();
 
                 MonthlyStatsResponse.AverageNutrition avgNutrition = calculateAverageNutrition(dailyBreakdowns);
-                MonthlyStatsResponse.TotalNutrition totalNutrition = calculateTotalNutrition(analyzedMeals);
+                MonthlyStatsResponse.TotalNutrition totalNutrition = calculateMonthlyTotalNutrition(analyzedMeals);
                 MonthlyStatsResponse.GoalAdherence adherence = calculateGoalAdherence(dailyBreakdowns, goals);
                 MonthlyStatsResponse.NutritionTrends trends = calculateMonthlyTrends(dailyBreakdowns, goals);
 
@@ -324,6 +324,154 @@ public class StatsService {
                                 .build();
         }
 
+        /**
+         * Get daily breakdown for a specific date range
+         */
+        public List<MonthlyStatsResponse.DailyBreakdown> getDailyBreakdownForRange(String email, LocalDate startDate,
+                        LocalDate endDate) {
+                // Get user profile for goals
+                UserProfileResponse userProfile = userService.getUserProfile(email);
+                MonthlyStatsResponse.NutritionGoals goals = buildMonthlyGoals(userProfile);
+
+                // Get all meals for the range
+                LocalDateTime startDateTime = startDate.atStartOfDay();
+                LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+                List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
+                                email, startDateTime, endDateTime);
+
+                // Filter analyzed meals
+                List<MealImage> analyzedMeals = meals.stream()
+                                .filter(meal -> "ANALYZED".equals(meal.getStatus()))
+                                .collect(Collectors.toList());
+
+                // Group meals by date
+                Map<LocalDate, List<MealImage>> mealsByDate = analyzedMeals.stream()
+                                .collect(Collectors.groupingBy(meal -> meal.getUploadedAt().toLocalDate()));
+
+                // Calculate daily breakdowns
+                List<MonthlyStatsResponse.DailyBreakdown> dailyBreakdowns = new ArrayList<>();
+                for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                        List<MealImage> dayMeals = mealsByDate.getOrDefault(date, List.of());
+                        // Only include days with meals to filter out empty days from the "streak" or
+                        // recommendation logic if desired
+                        // But for streaks, empty days are important (missed streak).
+                        // However, for "diet recommendation based on what you ate", empty days are
+                        // noise unless we say "you didn't eat".
+                        // Logic in getMonthlyStats includes ONLY days with meals: if
+                        // (!dayMeals.isEmpty())
+                        // I will stick to that to be consistent.
+                        if (!dayMeals.isEmpty()) {
+                                dailyBreakdowns.add(buildDailyBreakdown(date, dayMeals, goals));
+                        }
+                }
+                return dailyBreakdowns;
+        }
+
+        /**
+         * Calculate streak information for a user
+         */
+        public com.project.NutriTracker.dto.StreakResponse calculateStreak(String email, LocalDate endDate,
+                        int daysToAnalyze) {
+                LocalDate startDate = endDate.minusDays(daysToAnalyze - 1);
+
+                // Get user profile for goals
+                UserProfileResponse userProfile = userService.getUserProfile(email);
+                MonthlyStatsResponse.NutritionGoals goals = buildMonthlyGoals(userProfile);
+
+                // Get all meals for the range
+                LocalDateTime startDateTime = startDate.atStartOfDay();
+                LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+                List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
+                                email, startDateTime, endDateTime);
+
+                // Filter analyzed meals
+                List<MealImage> analyzedMeals = meals.stream()
+                                .filter(meal -> "ANALYZED".equals(meal.getStatus()))
+                                .collect(Collectors.toList());
+
+                // Group meals by date
+                Map<LocalDate, List<MealImage>> mealsByDate = analyzedMeals.stream()
+                                .collect(Collectors.groupingBy(meal -> meal.getUploadedAt().toLocalDate()));
+
+                // Build calendar data
+                List<com.project.NutriTracker.dto.StreakResponse.StreakDay> calendar = new ArrayList<>();
+                for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                        List<MealImage> dayMeals = mealsByDate.getOrDefault(date, List.of());
+                        boolean hasData = !dayMeals.isEmpty();
+                        boolean metGoals = false;
+
+                        if (hasData) {
+                                MonthlyStatsResponse.DailyBreakdown breakdown = buildDailyBreakdown(date, dayMeals,
+                                                goals);
+                                metGoals = breakdown.getMetGoals();
+                        }
+
+                        calendar.add(com.project.NutriTracker.dto.StreakResponse.StreakDay.builder()
+                                        .date(date)
+                                        .metGoals(metGoals)
+                                        .hasData(hasData)
+                                        .build());
+                }
+
+                // Calculate current streak (counting backwards from endDate)
+                int currentStreak = 0;
+                LocalDate streakStartDate = null;
+                LocalDate lastLoggedDate = null;
+
+                for (int i = calendar.size() - 1; i >= 0; i--) {
+                        com.project.NutriTracker.dto.StreakResponse.StreakDay day = calendar.get(i);
+                        if (day.getHasData() && lastLoggedDate == null) {
+                                lastLoggedDate = day.getDate();
+                        }
+                        if (day.getMetGoals()) {
+                                currentStreak++;
+                                streakStartDate = day.getDate();
+                        } else {
+                                break;
+                        }
+                }
+
+                // Calculate longest streak
+                int longestStreak = 0;
+                int tempStreak = 0;
+                for (com.project.NutriTracker.dto.StreakResponse.StreakDay day : calendar) {
+                        if (day.getMetGoals()) {
+                                tempStreak++;
+                                longestStreak = Math.max(longestStreak, tempStreak);
+                        } else {
+                                tempStreak = 0;
+                        }
+                }
+
+                // Generate motivational message
+                String motivationalMessage = generateMotivationalMessage(currentStreak, longestStreak);
+
+                return com.project.NutriTracker.dto.StreakResponse.builder()
+                                .currentStreak(currentStreak)
+                                .longestStreak(longestStreak)
+                                .streakStartDate(streakStartDate)
+                                .lastLoggedDate(lastLoggedDate)
+                                .calendar(calendar)
+                                .motivationalMessage(motivationalMessage)
+                                .build();
+        }
+
+        private String generateMotivationalMessage(int currentStreak, int longestStreak) {
+                if (currentStreak == 0) {
+                        return "Start your streak today! Every journey begins with a single step.";
+                } else if (currentStreak == 1) {
+                        return "Great start! Keep it going tomorrow.";
+                } else if (currentStreak < 7) {
+                        return String.format("You're on a %d-day streak! Keep up the momentum.", currentStreak);
+                } else if (currentStreak < 30) {
+                        return String.format("Amazing! %d days strong. You're building a healthy habit!",
+                                        currentStreak);
+                } else {
+                        return String.format("Incredible! %d days of consistency. You're a nutrition champion!",
+                                        currentStreak);
+                }
+        }
+
         // ==================== Helper Methods for Monthly Stats ====================
 
         private MonthlyStatsResponse.NutritionGoals buildMonthlyGoals(UserProfileResponse userProfile) {
@@ -406,7 +554,7 @@ public class StatsService {
                                 .build();
         }
 
-        private MonthlyStatsResponse.TotalNutrition calculateTotalNutrition(List<MealImage> meals) {
+        private MonthlyStatsResponse.TotalNutrition calculateMonthlyTotalNutrition(List<MealImage> meals) {
                 double totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0,
                                 totalSugar = 0;
 
