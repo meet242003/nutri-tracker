@@ -1,91 +1,73 @@
-# NutriTracker Frontend
+# React + TypeScript + Vite
 
-A React + TypeScript + Vite application for tracking nutrition through AI-powered meal image analysis.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Features
+Currently, two official plugins are available:
 
-- 🔐 **User Authentication**: Register and login with email verification
-- 📸 **Meal Image Upload**: Upload photos of your meals
-- 🤖 **AI Analysis**: Automatic food detection and nutrition calculation using Gemini AI
-- 📊 **Detailed Breakdown**: View calories, macros, and ingredient-level nutrition
-- 🎨 **Modern UI**: Clean, responsive design with Tailwind CSS
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Tech Stack
+## React Compiler
 
-- **React 19** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **Tailwind CSS 4** - Styling
-- **Fetch API** - HTTP requests
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Getting Started
+## Expanding the ESLint configuration
 
-### Prerequisites
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-- Node.js 18+ installed
-- Backend server running on `http://localhost:8080`
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-### Installation
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-The app will be available at `http://localhost:5173`
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-### Build for Production
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-```bash
-npm run build
-npm run preview
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── AuthForm.tsx       # Login/Register form
-│   └── MealUpload.tsx     # Meal upload and analysis display
-├── services/
-│   └── api.ts             # API service layer
-├── types/
-│   └── index.ts           # TypeScript type definitions
-├── App.tsx                # Main app component
-└── main.tsx               # App entry point
-```
-
-## API Integration
-
-The frontend connects to the backend API at `http://localhost:8080/api`:
-
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `POST /meals/upload` - Upload meal image
-- `GET /meals/{id}/analysis` - Get analysis results
-
-## Usage Flow
-
-1. **Register/Login**: Create an account or login with existing credentials
-2. **Upload Image**: Click to select or drag-drop a meal image
-3. **Analyze**: Click "Upload & Analyze" to process the image
-4. **View Results**: See detected foods, nutrition summary, and ingredient breakdown
-
-## Environment Variables
-
-Update `src/services/api.ts` to change the API base URL:
-
-```typescript
-const API_BASE_URL = 'http://localhost:8080/api';
-```
-
-## Notes
-
-- Email verification is required after registration
-- JWT tokens are stored in localStorage
-- Analysis typically takes 5-15 seconds depending on image complexity
-- Supports Indian cuisine with specialized nutrition database

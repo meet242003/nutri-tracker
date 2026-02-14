@@ -22,10 +22,10 @@ public class UserService {
     private final UserRepository userRepository;
 
     /**
-     * Get user profile by email
+     * Get user profile by ID
      */
-    public UserProfileResponse getUserProfile(String email) {
-        User user = userRepository.findByEmail(email)
+    public UserProfileResponse getUserProfile(String userId) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return buildUserProfileResponse(user);
@@ -34,8 +34,8 @@ public class UserService {
     /**
      * Update user profile
      */
-    public UserProfileResponse updateUserProfile(String email, UserProfileRequest request) {
-        User user = userRepository.findByEmail(email)
+    public UserProfileResponse updateUserProfile(String userId, UserProfileRequest request) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // Update user fields
@@ -62,7 +62,7 @@ public class UserService {
         }
 
         user = userRepository.save(user);
-        log.info("Updated profile for user: {}", email);
+        log.info("Updated profile for user: {}", userId);
 
         return buildUserProfileResponse(user);
     }

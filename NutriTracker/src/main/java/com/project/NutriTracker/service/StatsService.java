@@ -39,21 +39,28 @@ public class StatsService {
         /**
          * Get daily nutrition stats for a specific date
          */
-        public DailyStatsResponse getDailyStats(String email, LocalDate date) {
+        public DailyStatsResponse getDailyStats(String userId, LocalDate date) {
+                log.info("Getting daily stats for user: {} on date: {}", userId, date);
+
                 // Get user profile to fetch nutrition goals
-                UserProfileResponse userProfile = userService.getUserProfile(email);
+                UserProfileResponse userProfile = userService.getUserProfile(userId);
 
                 // Get all meals for the specified date
                 LocalDateTime startOfDay = date.atStartOfDay();
                 LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
+                log.info("Querying meals between {} and {}", startOfDay, endOfDay);
                 List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
-                                email, startOfDay, endOfDay);
+                                userId, startOfDay, endOfDay);
+
+                log.info("Found {} total meals for user", meals.size());
 
                 // Filter only analyzed meals
                 List<MealImage> analyzedMeals = meals.stream()
                                 .filter(meal -> "ANALYZED".equals(meal.getStatus()))
                                 .collect(Collectors.toList());
+
+                log.info("Found {} analyzed meals", analyzedMeals.size());
 
                 // Calculate total consumed nutrition
                 DailyStatsResponse.NutritionConsumed consumed = calculateDailyTotalNutrition(analyzedMeals);
@@ -188,22 +195,22 @@ public class StatsService {
         /**
          * Get monthly nutrition stats
          */
-        public MonthlyStatsResponse getMonthlyStats(String email, int year, int month) {
+        public MonthlyStatsResponse getMonthlyStats(String userId, int year, int month) {
                 YearMonth yearMonth = YearMonth.of(year, month);
                 LocalDate startDate = yearMonth.atDay(1);
                 LocalDate endDate = yearMonth.atEndOfMonth();
 
-                log.info("Fetching monthly stats for user: {} for {}-{}", email, year, month);
+                log.info("Fetching monthly stats for user: {} for {}-{}", userId, year, month);
 
                 // Get user profile for goals
-                UserProfileResponse userProfile = userService.getUserProfile(email);
+                UserProfileResponse userProfile = userService.getUserProfile(userId);
                 MonthlyStatsResponse.NutritionGoals goals = buildMonthlyGoals(userProfile);
 
                 // Get all meals for the month
                 LocalDateTime startDateTime = startDate.atStartOfDay();
                 LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
                 List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
-                                email, startDateTime, endDateTime);
+                                userId, startDateTime, endDateTime);
 
                 // Filter analyzed meals
                 List<MealImage> analyzedMeals = meals.stream()
@@ -256,18 +263,18 @@ public class StatsService {
         /**
          * Get yearly nutrition stats
          */
-        public YearlyStatsResponse getYearlyStats(String email, int year) {
-                log.info("Fetching yearly stats for user: {} for year {}", email, year);
+        public YearlyStatsResponse getYearlyStats(String userId, int year) {
+                log.info("Fetching yearly stats for user: {} for year {}", userId, year);
 
                 // Get user profile for goals
-                UserProfileResponse userProfile = userService.getUserProfile(email);
+                UserProfileResponse userProfile = userService.getUserProfile(userId);
                 YearlyStatsResponse.NutritionGoals goals = buildYearlyGoals(userProfile);
 
                 // Get all meals for the year
                 LocalDateTime startDateTime = LocalDate.of(year, 1, 1).atStartOfDay();
                 LocalDateTime endDateTime = LocalDate.of(year, 12, 31).atTime(LocalTime.MAX);
                 List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
-                                email, startDateTime, endDateTime);
+                                userId, startDateTime, endDateTime);
 
                 // Filter analyzed meals
                 List<MealImage> analyzedMeals = meals.stream()
@@ -327,17 +334,17 @@ public class StatsService {
         /**
          * Get daily breakdown for a specific date range
          */
-        public List<MonthlyStatsResponse.DailyBreakdown> getDailyBreakdownForRange(String email, LocalDate startDate,
+        public List<MonthlyStatsResponse.DailyBreakdown> getDailyBreakdownForRange(String userId, LocalDate startDate,
                         LocalDate endDate) {
                 // Get user profile for goals
-                UserProfileResponse userProfile = userService.getUserProfile(email);
+                UserProfileResponse userProfile = userService.getUserProfile(userId);
                 MonthlyStatsResponse.NutritionGoals goals = buildMonthlyGoals(userProfile);
 
                 // Get all meals for the range
                 LocalDateTime startDateTime = startDate.atStartOfDay();
                 LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
                 List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
-                                email, startDateTime, endDateTime);
+                                userId, startDateTime, endDateTime);
 
                 // Filter analyzed meals
                 List<MealImage> analyzedMeals = meals.stream()
@@ -370,19 +377,19 @@ public class StatsService {
         /**
          * Calculate streak information for a user
          */
-        public com.project.NutriTracker.dto.StreakResponse calculateStreak(String email, LocalDate endDate,
+        public com.project.NutriTracker.dto.StreakResponse calculateStreak(String userId, LocalDate endDate,
                         int daysToAnalyze) {
                 LocalDate startDate = endDate.minusDays(daysToAnalyze - 1);
 
                 // Get user profile for goals
-                UserProfileResponse userProfile = userService.getUserProfile(email);
+                UserProfileResponse userProfile = userService.getUserProfile(userId);
                 MonthlyStatsResponse.NutritionGoals goals = buildMonthlyGoals(userProfile);
 
                 // Get all meals for the range
                 LocalDateTime startDateTime = startDate.atStartOfDay();
                 LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
                 List<MealImage> meals = mealImageRepository.findByUserIdAndUploadedAtBetween(
-                                email, startDateTime, endDateTime);
+                                userId, startDateTime, endDateTime);
 
                 // Filter analyzed meals
                 List<MealImage> analyzedMeals = meals.stream()

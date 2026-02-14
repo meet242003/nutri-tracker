@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.project.NutriTracker.document.FoodComposition;
 import com.project.NutriTracker.document.MealImage;
+import com.project.NutriTracker.document.User;
 import com.project.NutriTracker.dto.FoodSearchResponse;
 import com.project.NutriTracker.dto.ManualFoodEntryRequest;
 import com.project.NutriTracker.dto.MealAnalysisResponse;
@@ -49,7 +50,8 @@ public class MealImageController {
             log.info("Received meal image upload request from user: {}", authentication.getName());
 
             // Get user ID from authentication
-            String userId = authentication.getName(); // This should be the user's email or ID
+            User principal = (User) authentication.getPrincipal();
+            String userId = principal.getId(); // This should be the user's email or ID
 
             // Upload and process image
             MealImageUploadResponse response = mealImageService.uploadMealImage(image, userId);
@@ -75,7 +77,8 @@ public class MealImageController {
             @RequestBody ManualFoodEntryRequest request,
             Authentication authentication) {
         try {
-            String userId = authentication.getName();
+            User principal = (User) authentication.getPrincipal();
+            String userId = principal.getId(); // This should be the user's email or ID
             log.info("Creating manual food entry for user: {}", userId);
 
             MealImage mealImage = mealImageService.createManualFoodEntry(userId, request.getFoods());

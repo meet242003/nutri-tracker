@@ -32,9 +32,9 @@ public class UserController {
     public ResponseEntity<?> getUserProfile(Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
-            log.info("Fetching profile for user: {}", email);
-            UserProfileResponse profile = userService.getUserProfile(email);
+            String userId = principal.getId();
+            log.info("Fetching profile for user: {}", userId);
+            UserProfileResponse profile = userService.getUserProfile(userId);
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
             log.error("Error fetching user profile: {}", e.getMessage(), e);
@@ -53,10 +53,10 @@ public class UserController {
             Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
-            log.info("Updating profile for user: {}", email);
+            String userId = principal.getId();
+            log.info("Updating profile for user: {}", userId);
 
-            UserProfileResponse profile = userService.updateUserProfile(email, request);
+            UserProfileResponse profile = userService.updateUserProfile(userId, request);
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
             log.error("Error updating user profile: {}", e.getMessage(), e);

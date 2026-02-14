@@ -52,7 +52,7 @@ public class MealImageService {
             // Save to database
             MealImage savedImage = mealImageRepository.save(mealImage);
 
-            log.info("Meal image uploaded successfully with ID: {}", savedImage.getId());
+            log.info("Meal image uploaded successfully with ID: {} for userId: {}", savedImage.getId(), userId);
 
             // Trigger async analysis
             // We use the bytes we read so we don't depend on the MultipartFile/stream

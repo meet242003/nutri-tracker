@@ -36,12 +36,12 @@ public class StatsController {
             Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
+            String userId = principal.getId();
             LocalDate targetDate = date != null ? date : LocalDate.now();
 
-            log.info("Fetching daily stats for user: {} on date: {}", email, targetDate);
+            log.info("Fetching daily stats for user: {} on date: {}", userId, targetDate);
 
-            DailyStatsResponse stats = statsService.getDailyStats(email, targetDate);
+            DailyStatsResponse stats = statsService.getDailyStats(userId, targetDate);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             log.error("Error fetching daily stats: {}", e.getMessage(), e);
@@ -58,10 +58,10 @@ public class StatsController {
     public ResponseEntity<?> getTodayStats(Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
-            log.info("Fetching today's stats for user: {}", email);
+            String userId = principal.getId();
+            log.info("Fetching today's stats for user: {}", userId);
 
-            DailyStatsResponse stats = statsService.getDailyStats(email, LocalDate.now());
+            DailyStatsResponse stats = statsService.getDailyStats(userId, LocalDate.now());
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             log.error("Error fetching today's stats: {}", e.getMessage(), e);
@@ -81,10 +81,10 @@ public class StatsController {
             Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
-            log.info("Fetching monthly stats for user: {} for {}-{}", email, year, month);
+            String userId = principal.getId();
+            log.info("Fetching monthly stats for user: {} for {}-{}", userId, year, month);
 
-            com.project.NutriTracker.dto.MonthlyStatsResponse stats = statsService.getMonthlyStats(email, year, month);
+            com.project.NutriTracker.dto.MonthlyStatsResponse stats = statsService.getMonthlyStats(userId, year, month);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             log.error("Error fetching monthly stats: {}", e.getMessage(), e);
@@ -103,10 +103,10 @@ public class StatsController {
             Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
-            log.info("Fetching yearly stats for user: {} for year {}", email, year);
+            String userId = principal.getId();
+            log.info("Fetching yearly stats for user: {} for year {}", userId, year);
 
-            com.project.NutriTracker.dto.YearlyStatsResponse stats = statsService.getYearlyStats(email, year);
+            com.project.NutriTracker.dto.YearlyStatsResponse stats = statsService.getYearlyStats(userId, year);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             log.error("Error fetching yearly stats: {}", e.getMessage(), e);
@@ -126,12 +126,12 @@ public class StatsController {
             Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
+            String userId = principal.getId();
             LocalDate endDate = LocalDate.now();
 
-            log.info("Fetching streak for user: {} (last {} days)", email, days);
+            log.info("Fetching streak for user: {} (last {} days)", userId, days);
 
-            com.project.NutriTracker.dto.StreakResponse streak = statsService.calculateStreak(email, endDate, days);
+            com.project.NutriTracker.dto.StreakResponse streak = statsService.calculateStreak(userId, endDate, days);
             return ResponseEntity.ok(streak);
         } catch (Exception e) {
             log.error("Error fetching streak: {}", e.getMessage(), e);

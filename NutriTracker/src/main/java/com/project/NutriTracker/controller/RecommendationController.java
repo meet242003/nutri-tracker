@@ -34,19 +34,19 @@ public class RecommendationController {
     public ResponseEntity<?> getDietRecommendation(Authentication authentication) {
         try {
             User principal = (User) authentication.getPrincipal();
-            String email = principal.getEmail();
+            String userId = principal.getId();
 
             // Get recent stats (last 7 days including today)
             LocalDate endDate = LocalDate.now();
             LocalDate startDate = endDate.minusDays(6);
 
-            log.info("Generating diet recommendation for user: {} (Range: {} to {})", email, startDate, endDate);
+            log.info("Generating diet recommendation for user: {} (Range: {} to {})", userId, startDate, endDate);
 
-            List<MonthlyStatsResponse.DailyBreakdown> recentStats = statsService.getDailyBreakdownForRange(email,
+            List<MonthlyStatsResponse.DailyBreakdown> recentStats = statsService.getDailyBreakdownForRange(userId,
                     startDate, endDate);
 
             // Get user profile
-            UserProfileResponse userProfile = userService.getUserProfile(email);
+            UserProfileResponse userProfile = userService.getUserProfile(userId);
 
             // Generate recommendation
             DietRecommendationResponse recommendation = geminiService.generateDietRecommendation(recentStats,

@@ -1,233 +1,142 @@
 import { useState, useEffect } from 'react';
-import { statsApi, userApi } from '../services/api';
-import type { DailyStatsResponse, UserProfileResponse } from '../types';
+import { getTodayStats, deleteMeal, type DailyStatsResponse } from '../services/meal.service';
+import { DailyStats } from './DailyStats';
+import { MealCard } from './MealCard';
+import { MealUploadModal } from './MealUploadModal';
 
-export default function Dashboard() {
+export const Dashboard = () => {
     const [stats, setStats] = useState<DailyStatsResponse | null>(null);
-    const [profile, setProfile] = useState<UserProfileResponse | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadStats = async () => {
         try {
+            console.log('Loading stats...');
             setLoading(true);
-            const [statsData, profileData] = await Promise.all([
-                statsApi.getTodayStats(),
-                userApi.getProfile(),
-            ]);
-            setStats(statsData);
-            setProfile(profileData);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load data');
+            const data = await getTodayStats();
+            console.log('Stats loaded:', data);
+            setStats(data);
+            setError(null);
+        } catch (err: any) {
+            console.error('Error loading stats:', err);
+            setError(err.response?.data?.error || 'Failed to load stats');
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        loadStats();
+    }, []);
+
+    const handleMealUploadSuccess = () => {
+        console.log('Meal upload success - refreshing stats...');
+        loadStats(); // Refresh stats after successful upload
+    };
+
+    const handleDeleteMeal = async (mealId: string) => {
+        if (!confirm('Are you sure you want to delete this meal?')) return;
+
+        try {
+            await deleteMeal(mealId);
+            loadStats(); // Refresh stats after deletion
+        } catch (err: any) {
+            alert('Failed to delete meal');
+            console.error('Error deleting meal:', err);
+        }
+    };
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <svg className="animate-spin h-12 w-12 text-emerald-500 mx-auto mb-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <p className="text-neutral-400">Loading your stats...</p>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                    {error}
-                </div>
+            <div className="text-center py-12">
+                <div className="text-red-400 mb-4">{error}</div>
+                <button
+                    onClick={loadStats}
+                    className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+                >
+                    Retry
+                </button>
             </div>
         );
     }
 
-    if (!stats) return null;
-
-    const calorieProgress = (stats.consumed.calories / stats.goals.calories) * 100;
-    const proteinProgress = (stats.consumed.protein / stats.goals.protein) * 100;
-    const carbsProgress = (stats.consumed.carbohydrates / stats.goals.carbohydrates) * 100;
-    const fatProgress = (stats.consumed.fat / stats.goals.fat) * 100;
-
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header Stats */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Today's Nutrition</h2>
-
-                {/* Main Calorie Card */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-700">Calories</h3>
-                            <p className="text-3xl font-bold text-emerald-600">
-                                {Math.round(stats.consumed.calories)}
-                                <span className="text-lg text-gray-500"> / {Math.round(stats.goals.calories)}</span>
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-600">Remaining</p>
-                            <p className="text-2xl font-bold text-gray-800">
-                                {Math.round(stats.remaining.calories)}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                            className={`h-3 rounded-full transition-all ${calorieProgress > 100 ? 'bg-red-500' : 'bg-emerald-500'
-                                }`}
-                            style={{ width: `${Math.min(calorieProgress, 100)}%` }}
-                        ></div>
-                    </div>
+        <div className="w-full max-w-6xl mx-auto space-y-8 animate-fadeIn">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-3xl font-bold text-white">Today's Progress</h2>
+                    <p className="text-neutral-400 mt-1">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
                 </div>
-
-                {/* Macros Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Protein */}
-                    <div className="bg-white rounded-xl shadow p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-semibold text-gray-600">Protein</h4>
-                            <span className="text-xs text-gray-500">
-                                {Math.round(proteinProgress)}%
-                            </span>
-                        </div>
-                        <p className="text-2xl font-bold text-blue-600 mb-2">
-                            {Math.round(stats.consumed.protein)}g
-                            <span className="text-sm text-gray-500"> / {Math.round(stats.goals.protein)}g</span>
-                        </p>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                                className="bg-blue-500 h-2 rounded-full transition-all"
-                                style={{ width: `${Math.min(proteinProgress, 100)}%` }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Carbs */}
-                    <div className="bg-white rounded-xl shadow p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-semibold text-gray-600">Carbs</h4>
-                            <span className="text-xs text-gray-500">
-                                {Math.round(carbsProgress)}%
-                            </span>
-                        </div>
-                        <p className="text-2xl font-bold text-amber-600 mb-2">
-                            {Math.round(stats.consumed.carbohydrates)}g
-                            <span className="text-sm text-gray-500"> / {Math.round(stats.goals.carbohydrates)}g</span>
-                        </p>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                                className="bg-amber-500 h-2 rounded-full transition-all"
-                                style={{ width: `${Math.min(carbsProgress, 100)}%` }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Fat */}
-                    <div className="bg-white rounded-xl shadow p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-semibold text-gray-600">Fat</h4>
-                            <span className="text-xs text-gray-500">
-                                {Math.round(fatProgress)}%
-                            </span>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-600 mb-2">
-                            {Math.round(stats.consumed.fat)}g
-                            <span className="text-sm text-gray-500"> / {Math.round(stats.goals.fat)}g</span>
-                        </p>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                                className="bg-purple-500 h-2 rounded-full transition-all"
-                                style={{ width: `${Math.min(fatProgress, 100)}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                </div>
+                <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-emerald-500/25 flex items-center gap-2"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Meal
+                </button>
             </div>
 
-            {/* Profile Summary */}
-            {profile?.nutritionGoals && (
-                <div className="bg-white rounded-xl shadow p-6 mb-8">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Your Goals</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <p className="text-sm text-gray-600">BMR</p>
-                            <p className="text-xl font-bold text-gray-800">{Math.round(profile.bmr || 0)}</p>
-                            <p className="text-xs text-gray-500">kcal/day</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">TDEE</p>
-                            <p className="text-xl font-bold text-gray-800">{Math.round(profile.tdee || 0)}</p>
-                            <p className="text-xs text-gray-500">kcal/day</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Activity</p>
-                            <p className="text-sm font-semibold text-gray-800">
-                                {profile.activityLevel?.replace(/_/g, ' ')}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Goal</p>
-                            <p className="text-sm font-semibold text-gray-800">
-                                {profile.goal?.replace(/_/g, ' ')}
-                            </p>
-                        </div>
-                    </div>
+            {/* Daily Stats */}
+            {stats && <DailyStats stats={stats} />}
+
+            {/* Meals Section */}
+            <div>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-white">Today's Meals</h3>
+                    <span className="text-sm text-neutral-500">
+                        {stats?.totalMeals || 0} meal{stats?.totalMeals !== 1 ? 's' : ''}
+                    </span>
                 </div>
-            )}
 
-            {/* Meals List */}
-            <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                    Today's Meals ({stats.totalMeals})
-                </h3>
-
-                {stats.meals.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">No meals logged yet today</p>
-                ) : (
-                    <div className="space-y-4">
+                {stats?.meals && stats.meals.length > 0 ? (
+                    <div className="space-y-3">
                         {stats.meals.map((meal) => (
-                            <div key={meal.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                <div className="flex items-start gap-4">
-                                    {meal.imageUrl && (
-                                        <img
-                                            src={meal.imageUrl}
-                                            alt="Meal"
-                                            className="w-20 h-20 rounded-lg object-cover"
-                                        />
-                                    )}
-                                    <div className="flex-1">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div>
-                                                <p className="font-medium text-gray-800">
-                                                    {meal.foodItems.join(', ') || 'Manual Entry'}
-                                                </p>
-                                                <p className="text-sm text-gray-500">
-                                                    {new Date(meal.uploadedAt).toLocaleTimeString()}
-                                                </p>
-                                            </div>
-                                            <p className="text-lg font-bold text-emerald-600">
-                                                {Math.round(meal.nutrition.calories)} kcal
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-4 text-sm text-gray-600">
-                                            <span>P: {Math.round(meal.nutrition.protein)}g</span>
-                                            <span>C: {Math.round(meal.nutrition.carbohydrates)}g</span>
-                                            <span>F: {Math.round(meal.nutrition.fat)}g</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <MealCard key={meal.id} meal={meal} onDelete={handleDeleteMeal} />
                         ))}
+                    </div>
+                ) : (
+                    <div className="bg-neutral-800/50 backdrop-blur-sm border border-neutral-700/50 rounded-2xl p-12 text-center">
+                        <svg className="w-16 h-16 text-neutral-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <h4 className="text-lg font-medium text-neutral-300 mb-2">No meals logged yet</h4>
+                        <p className="text-neutral-500 mb-6">Start tracking your nutrition by adding your first meal!</p>
+                        <button
+                            onClick={() => setShowUploadModal(true)}
+                            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            Add Your First Meal
+                        </button>
                     </div>
                 )}
             </div>
+
+            {/* Upload Modal */}
+            <MealUploadModal
+                isOpen={showUploadModal}
+                onClose={() => setShowUploadModal(false)}
+                onSuccess={handleMealUploadSuccess}
+            />
         </div>
     );
-}
+};
